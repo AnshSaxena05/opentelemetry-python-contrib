@@ -143,6 +143,26 @@ class TestOpenTelemetryAioServerInterceptor(TestBase, IsolatedAsyncioTestCase):
         spans_list = self.memory_exporter.get_finished_spans()
         self.assertEqual(len(spans_list), 0)
 
+    async def test_no_op_tracer_provider(self):
+        """Check that no spans are recorded with a NoOpTracerProvider"""
+        rpc_call = "/GRPCTestServer/SimpleMethod"
+
+        grpc_aio_server_instrumentor = GrpcAioInstrumentorServer()
+        try:
+            grpc_aio_server_instrumentor.instrument(tracer_provider=trace.NoOpTracerProvider())
+
+            async def request(channel):
+                request = Request(client_id=1, request_data="test")
+                msg = request.SerializeToString()
+                return await channel.unary_unary(rpc_call)(msg)
+
+            await run_with_test_server(request)
+
+            spans_list = self.memory_exporter.get_finished_spans()
+            self.assertEqual(len(spans_list), 0)
+        finally:
+            grpc_aio_server_instrumentor.uninstrument()
+
     async def test_create_span(self):
         """Check that the interceptor wraps calls with spans server-side."""
         rpc_call = "/GRPCTestServer/SimpleMethod"

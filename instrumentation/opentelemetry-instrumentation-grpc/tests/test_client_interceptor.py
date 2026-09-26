@@ -118,6 +118,17 @@ class TestClientProto(TestBase):
             },
         )
 
+    def test_no_op_tracer_provider(self):
+        GrpcInstrumentorClient().uninstrument()
+        GrpcInstrumentorClient().instrument(tracer_provider=trace.NoOpTracerProvider())
+
+        with grpc.insecure_channel("localhost:25565") as channel:
+            stub = test_server_pb2_grpc.GRPCTestServerStub(channel)
+            simple_method(stub)
+
+        spans = self.memory_exporter.get_finished_spans()
+        self.assertEqual(len(spans), 0)
+
     def test_unary_stream(self):
         server_streaming_method(self._stub)
         spans = self.memory_exporter.get_finished_spans()

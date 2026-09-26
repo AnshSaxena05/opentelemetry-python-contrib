@@ -415,6 +415,7 @@ class GrpcInstrumentorClient(BaseInstrumentor):
         self._filter = filter_
         self._request_hook = None
         self._response_hook = None
+        self._tracer_provider = None
 
     # Figures out which channel type we need to wrap
     def _which_channel(self, kwargs):
@@ -438,6 +439,7 @@ class GrpcInstrumentorClient(BaseInstrumentor):
     def _instrument(self, **kwargs):
         self._request_hook = kwargs.get("request_hook")
         self._response_hook = kwargs.get("response_hook")
+        self._tracer_provider = kwargs.get("tracer_provider")
         for ctype in self._which_channel(kwargs):
             _wrap(
                 "grpc",
@@ -451,7 +453,7 @@ class GrpcInstrumentorClient(BaseInstrumentor):
 
     def wrapper_fn(self, original_func, instance, args, kwargs):
         channel = original_func(*args, **kwargs)
-        tracer_provider = kwargs.get("tracer_provider")
+        tracer_provider = self._tracer_provider
         request_hook = self._request_hook
         response_hook = self._response_hook
         return intercept_channel(

@@ -167,6 +167,28 @@ class TestOpenTelemetryServerInterceptor(TestBase):
         spans_list = self.memory_exporter.get_finished_spans()
         self.assertEqual(len(spans_list), 0)
 
+    def test_no_op_tracer_provider(self):
+        def handler(request, context):
+            return b""
+
+        grpc_server_instrumentor = GrpcInstrumentorServer()
+        grpc_server_instrumentor.instrument(tracer_provider=trace.NoOpTracerProvider())
+
+        try:
+            with self.server(max_workers=1) as (server, channel):
+                server.add_generic_rpc_handlers((UnaryUnaryRpcHandler(handler),))
+                rpc_call = "TestServicer/handler"
+                try:
+                    server.start()
+                    channel.unary_unary(rpc_call)(b"test")
+                finally:
+                    server.stop(None)
+        finally:
+            grpc_server_instrumentor.uninstrument()
+
+        spans_list = self.memory_exporter.get_finished_spans()
+        self.assertEqual(len(spans_list), 0)
+
     def test_create_span(self):
         """Check that the interceptor wraps calls with spans server-side."""
 

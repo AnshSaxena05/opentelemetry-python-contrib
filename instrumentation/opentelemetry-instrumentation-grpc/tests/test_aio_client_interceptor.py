@@ -93,6 +93,25 @@ class TestAioClientInterceptor(TestBase, IsolatedAsyncioTestCase):
         spans = self.memory_exporter.get_finished_spans()
         self.assertEqual(len(spans), 0)
 
+    async def test_no_op_tracer_provider(self):
+        instrumentor = GrpcAioInstrumentorClient()
+
+        try:
+            instrumentor.instrument(tracer_provider=trace.NoOpTracerProvider())
+
+            channel = grpc.aio.insecure_channel("localhost:25565")
+            stub = test_server_pb2_grpc.GRPCTestServerStub(channel)
+
+            response = await simple_method(stub)
+            assert response.response_data == "data"
+
+            await channel.close()
+
+            spans = self.memory_exporter.get_finished_spans()
+            self.assertEqual(len(spans), 0)
+        finally:
+            instrumentor.uninstrument()
+
     async def test_unary_unary(self):
         response = await simple_method(self._stub)
         assert response.response_data == "data"
